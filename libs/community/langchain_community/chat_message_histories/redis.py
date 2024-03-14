@@ -50,13 +50,13 @@ class RedisChatMessageHistory(BaseChatMessageHistory):
     def messages(self) -> List[BaseMessage]:  # type: ignore
         """Retrieve the messages from Redis"""
         _items = self.redis_client.lrange(self.key, 0, -1)
-        items = [json.loads(m.decode("utf-8")) for m in _items[::-1]]
+        items = [json.loads(m.decode("utf-8")) for m in _items]
         messages = messages_from_dict(items)
         return messages
 
     def add_message(self, message: BaseMessage) -> None:
         """Append the message to the record in Redis"""
-        self.redis_client.lpush(self.key, json.dumps(message_to_dict(message)))
+        self.redis_client.rpush(self.key, json.dumps(message_to_dict(message)))
         if self.ttl:
             self.redis_client.expire(self.key, self.ttl)
 
