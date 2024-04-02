@@ -179,18 +179,28 @@ class Qdrant(VectorStore):
             batch_size:
                 How many vectors upload per-request.
                 Default: 64
+            fallback:
+                Whether to try to roll back when the addition fails.
+                Default: False
 
         Returns:
             List of ids from adding the texts into the vectorstore.
         """
         added_ids = []
+        fallback = kwargs.pop("fallback", False)
         for batch_ids, points in self._generate_rest_batches(
             texts, metadatas, ids, batch_size
         ):
-            self.client.upsert(
-                collection_name=self.collection_name, points=points, **kwargs
-            )
-            added_ids.extend(batch_ids)
+            try:
+                self.client.upsert(
+                    collection_name=self.collection_name, points=points, **kwargs
+                )
+                added_ids.extend(batch_ids)
+            except Exception as e:
+                if fallback:
+                    self.delete(ids=added_ids)
+                    self.delete(ids=batch_ids)
+                raise e
 
         return added_ids
 
@@ -214,6 +224,9 @@ class Qdrant(VectorStore):
             batch_size:
                 How many vectors upload per-request.
                 Default: 64
+            fallback:
+                Whether to try to roll back when the addition fails.
+                Default: False
 
         Returns:
             List of ids from adding the texts into the vectorstore.
@@ -228,13 +241,20 @@ class Qdrant(VectorStore):
             )
 
         added_ids = []
+        fallback = kwargs.pop("fallback", False)
         async for batch_ids, points in self._agenerate_rest_batches(
             texts, metadatas, ids, batch_size
         ):
-            await self.async_client.upsert(
-                collection_name=self.collection_name, points=points, **kwargs
-            )
-            added_ids.extend(batch_ids)
+            try:
+                await self.async_client.upsert(
+                    collection_name=self.collection_name, points=points, **kwargs
+                )
+                added_ids.extend(batch_ids)
+            except Exception as e:
+                if fallback:
+                    await self.adelete(ids=added_ids)
+                    await self.adelete(ids=batch_ids)
+                raise e
 
         return added_ids
 
